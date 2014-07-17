@@ -1,7 +1,22 @@
 from pandas.io.json import json_normalize
 from urllib2 import Request, urlopen
 import pandas as pd
+import nibabel as nb
 import json
+import urllib, os, errno
+from nipype.utils.filemanip import split_filename
+
+from nilearn.image import resample_img
+from nilearn.input_data.nifti_masker import NiftiMasker
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
 
 def get_collections_df():
     """Downloads metadata about collections/papers stored in NeuroVault and 
@@ -27,6 +42,7 @@ def get_images_df():
     data = json.loads(elevations)
     images_df = json_normalize(data)
     images_df['collection'] = images_df['collection'].apply(lambda x: int(x.split("/")[-2]))
+    images_df['image_id'] = images_df['url'].apply(lambda x: int(x.split("/")[-2]))
     images_df.rename(columns={'collection':'collection_id'}, inplace=True)
     return images_df
 
@@ -42,7 +58,40 @@ def get_images_with_collections_df():
                       suffixes=('_image', '_collection'))
     return combined_df
 
+def download_and_resample(images_df, dest_dir, target):
+    """Downloads all stat maps and resamples them to a common space.
+    """
+    
+    target_nii = nb.load(target)
+    orig_path = os.path.join(dest_dir, "original")
+    mkdir_p(orig_path)
+    resampled_path = os.path.join(dest_dir, "resampled")
+    mkdir_p(resampled_path)
+    
+    for row in combined_df.iterrows():
+        # Downloading the file to the "original" subfolder
+        _, _, ext = split_filename(row[1]['file'])
+        orig_file = os.path.join(orig_path, "%04d%s" % (row[1]['image_id'], ext))
+        if not os.path.exists(orig_file):
+            urllib.urlretrieve(row[1]['file'], orig_file)
+        
+        # Resampling the file to target and saving the output in the "resampled"
+        # folder
+        resampled_file = os.path.join(resampled_path, 
+            "%04d_2mm%s" % (row[1]['image_id'], ext))
+        if not os.path.exists(resampled_file):
+            resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
+                target_nii.shape)
+            resampled_nii.to_filename(resampled_file)
+
 
 if __name__ == '__main__':
     combined_df = get_images_with_collections_df()
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
+    
+    dest_dir = "/tmp/neurovault_analysis"
+    target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
+    
+    download_and_resample(combined_df, dest_dir, target)
+        
+        
