@@ -2,12 +2,15 @@ from pandas.io.json import json_normalize
 from urllib2 import Request, urlopen
 import pandas as pd
 import nibabel as nb
+import numpy as np
+import pylab as plt
 import json
 import urllib, os, errno
 from nipype.utils.filemanip import split_filename
 
 from nilearn.image import resample_img
 from nilearn.input_data.nifti_masker import NiftiMasker
+from nilearn.plotting.img_plotting import plot_stat_map
 
 
 def mkdir_p(path):
@@ -83,6 +86,32 @@ def download_and_resample(images_df, dest_dir, target):
             resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
                 target_nii.shape)
             resampled_nii.to_filename(resampled_file)
+            
+def get_frequency_map(images_df, dest_dir, target):
+    """
+    """
+    
+    target_nii = nb.load(target)
+    orig_path = os.path.join(dest_dir, "original")
+    freq_map_data = np.zeros(target_nii.shape)
+    
+    for row in combined_df.iterrows():
+        _, _, ext = split_filename(row[1]['file'])
+        orig_file = os.path.join(orig_path, "%04d%s" % (row[1]['image_id'], ext))
+        nb.load(orig_file)
+        if not os.path.exists(orig_file):
+            urllib.urlretrieve(row[1]['file'], orig_file)
+        
+        resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
+                                     target_nii.shape, 
+                                     interpolation="nearest")
+        data = resampled_nii.get_data()
+        data[data != 0] = 1
+        if len(data.shape) == 4:
+            data.shape = data.shape[:3]
+        freq_map_data += data
+        
+    return nb.Nifti1Image(freq_map_data, target_nii.get_affine())
 
 
 if __name__ == '__main__':
@@ -93,5 +122,11 @@ if __name__ == '__main__':
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
     
     download_and_resample(combined_df, dest_dir, target)
-        
+    
+    freq_nii = get_frequency_map(combined_df, dest_dir, target)
+    
+    plot_stat_map(freq_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
+                  display_mode="z")
+    freq_nii.to_filename("/tmp/freq_map.nii.gz")
+    plt.show()
         
