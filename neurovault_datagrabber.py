@@ -120,6 +120,7 @@ if __name__ == '__main__':
     
     #restrict to Z-, F-, or T-maps
     combined_df = combined_df[combined_df['map_type'].isin(["Z","F","T"])]
+    print combined_df["name_collection"].value_counts() 
     
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
