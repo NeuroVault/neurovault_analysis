@@ -118,6 +118,9 @@ if __name__ == '__main__':
     combined_df = get_images_with_collections_df()
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
     
+    #restrict to Z-, F-, or T-maps
+    combined_df = combined_df[combined_df['map_type'].isin(["Z","F","T"])]
+    
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
     
