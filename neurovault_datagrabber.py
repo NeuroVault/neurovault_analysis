@@ -134,3 +134,4 @@ if __name__ == '__main__':
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
     plt.show()
         
+    combined_df.to_csv('%s/metadata.csv' % dest_dir, encoding='utf8')
