@@ -1,8 +1,9 @@
 import os
-import glob
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
+sns.set_style("whitegrid")
 
 from matplotlib import pyplot as plt
 from nilearn.input_data import NiftiMasker
@@ -14,31 +15,25 @@ from sklearn.preprocessing import LabelEncoder
 data_dir = "/tmp/neurovault_analysis"
 mask = '/usr/share/fsl/data/standard/MNI152_T1_2mm_brain_mask.nii.gz'
 
-faulty_images = ['0096_2mm.nii.gz', '0097_2mm.nii.gz', '0098_2mm.nii.gz']
-images = glob.glob(os.path.join(data_dir, 'resampled', '*.nii.gz'))
-images = [img for img in images if os.path.split(img)[1] not in faulty_images]
-images.sort()
-
-masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
-X = masker.fit_transform(images)
+faulty_ids = [96, 97, 98]
 
 metadata = pd.DataFrame.from_csv(os.path.join(data_dir, 'metadata.csv'))
 
 # filter out faulty images
-faulty_ids = [int(i.split('_')[0]) for i in faulty_images]
 metadata = metadata[~metadata.image_id.isin(faulty_ids)]
-
-# order the dataframe
-order = np.argsort(metadata.image_id.values)
-metadata = metadata.iloc[order]
 
 # replace NaNs by unknown
 metadata.fillna('unknown')
 
 # can choose another target field here
-target = metadata['description_collection'].values
+target = metadata['collection_id'].values
 le = LabelEncoder()
 y = le.fit_transform(target)
+
+images = [os.path.join(data_dir, 'resampled', '%04d_2mm.nii.gz'%row[1]['image_id']) for row in metadata.iterrows()]
+
+masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
+X = masker.fit_transform(images)
 
 # -------------------------------------------
 # quick PCA and plotting
@@ -63,7 +58,8 @@ from pandas.tools.plotting import scatter_matrix
 from scipy.stats import gaussian_kde
 
 
-def factor_scatter_matrix(df, factor, palette=None, title=None):
+def factor_scatter_matrix(df, factor, factor_labels, legend_title,
+                          palette=None, title=None):
     '''Create a scatter matrix of the variables in df, with differently colored
     points depending on the value of df[factor].
     inputs:
@@ -85,11 +81,9 @@ def factor_scatter_matrix(df, factor, palette=None, title=None):
     classes = list(set(factor))
 
     if palette is None:
-        #palette = matplotlib.colors.cnames.values()
-        palette = ['#e41a1c', '#377eb8', '#4eae4b',
-                   '#994fa1', '#ff8101', '#fdfc33',
-                   '#a8572c', '#f482be', '#999999',
-                   '#4B610B', '#DF013A', '#DF013A']
+        palette = sns.color_palette("gist_ncar", len(set(factor)))
+    else:
+        palette = sns.color_palette(palette)
 
     color_map = dict(zip(classes, palette))
 
@@ -101,7 +95,9 @@ def factor_scatter_matrix(df, factor, palette=None, title=None):
 
     colors = factor.apply(lambda group: color_map[group])
     axarr = scatter_matrix(df, figsize=(10, 10),
-                           marker='o', c=colors, diagonal=None)
+                           marker='o', c=np.array(list(colors)), diagonal=None)
+    plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
+               factor_labels, title=legend_title)
     if title is not None:
         plt.title(title)
 
@@ -115,5 +111,6 @@ def factor_scatter_matrix(df, factor, palette=None, title=None):
     return axarr, color_map
 
 df_pca['label'] = y
-factor_scatter_matrix(df_pca, 'label')
+factor_scatter_matrix(df_pca, 'label', le.inverse_transform(list(set(y))),
+                      'collection_id')
 plt.show()
