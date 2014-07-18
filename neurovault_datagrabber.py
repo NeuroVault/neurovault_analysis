@@ -85,6 +85,8 @@ def download_and_resample(images_df, dest_dir, target):
         if not os.path.exists(resampled_file):
             resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
                 target_nii.shape)
+            resampled_nii = nb.Nifti1Image(resampled_nii.get_data().reshape(resampled_nii.shape[:3]), 
+                                           resampled_nii.get_affine())
             resampled_nii.to_filename(resampled_file)
             
 def get_frequency_map(images_df, dest_dir, target):
