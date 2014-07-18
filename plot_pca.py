@@ -30,7 +30,9 @@ target = metadata['collection_id'].values
 le = LabelEncoder()
 y = le.fit_transform(target)
 
-images = [os.path.join(data_dir, 'resampled', '%04d_2mm.nii.gz'%row[1]['image_id']) for row in metadata.iterrows()]
+images = [os.path.join(data_dir, 'resampled',
+                       '%04d_2mm.nii.gz' % row[1]['image_id'])
+          for row in metadata.iterrows()]
 
 masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
 X = masker.fit_transform(images)
@@ -47,7 +49,6 @@ X_pca = pca.fit_transform(X)
 df_pca = pd.DataFrame(dict(zip(np.arange(pca.n_components), X_pca.T)))
 
 scatter_matrix(df_pca, alpha=0.2, figsize=(6, 6), diagonal='kde')
-plt.show()
 
 # -------------------------------------------
 # ugly code to plot scatter matrices
@@ -113,5 +114,18 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
 
 df_pca['label'] = y
 factor_scatter_matrix(df_pca, 'label', le.inverse_transform(list(set(y))),
+                      'collection_id')
+
+# -------------------------------------------
+# quick PCA and plotting
+
+from sklearn.manifold import TSNE
+
+tsne = TSNE(n_components=3, perplexity=5)
+X_tsne = tsne.fit_transform(X.astype('float64'))
+
+df_tsne = pd.DataFrame(dict(zip(np.arange(tsne.n_components), X_tsne.T)))
+df_tsne['label'] = y
+factor_scatter_matrix(df_tsne, 'label', le.inverse_transform(list(set(y))),
                       'collection_id')
 plt.show()
