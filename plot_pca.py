@@ -95,7 +95,8 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
 
     colors = factor.apply(lambda group: color_map[group])
     axarr = scatter_matrix(df, figsize=(10, 10),
-                           marker='o', c=np.array(list(colors)), diagonal=None)
+                           marker='o', c=np.array(list(colors)), diagonal=None,
+                           alpha=1.0)
     plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
                factor_labels, title=legend_title)
     if title is not None:
