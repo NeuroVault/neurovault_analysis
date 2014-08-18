@@ -87,35 +87,35 @@ def download_and_resample(images_df, dest_dir, target):
         # Resampling the file to target and saving the output in the "resampled"
         # folder
         resampled_file = os.path.join(resampled_path,
-                                      "%04d_2mm%s" % (row[1]['image_id'], ext))
-        if not os.path.exists(resampled_file):
-            print "Resampling %s" % orig_file
-            resampled_nii = resample_img(orig_file, target_nii.get_affine(),
-                target_nii.shape)
-            resampled_nii = nb.Nifti1Image(resampled_nii.get_data().squeeze(),
-                                           resampled_nii.get_affine())
-            if len(resampled_nii.shape) == 3:
-                resampled_nii.to_filename(resampled_file)
-            else:
-                # We have a 4D file
-                assert len(resampled_nii.shape) == 4
-                resampled_data = resampled_nii.get_data()
-                affine = resampled_nii.affine
-                for index in range(resampled_nii.shape[-1]):
+                                      "%06d%s" % (row[1]['image_id'], ext))
 
-                    # First save the files separately
-                    this_nii = nb.Nifti1Image(resampled_data[..., index],
-                                              affine)
-                    this_id = int("%i%i" % (-row[1]['image_id'], index))
-                    this_file = os.path.join(resampled_path,
-                        "%06d_2mm%s" % (this_id, ext))
-                    this_nii.to_filename(this_file)
+        print "Resampling %s" % orig_file
+        resampled_nii = resample_img(orig_file, target_nii.get_affine(),
+            target_nii.shape)
+        resampled_nii = nb.Nifti1Image(resampled_nii.get_data().squeeze(),
+                                        resampled_nii.get_affine())
+        if len(resampled_nii.shape) == 3:
+            resampled_nii.to_filename(resampled_file)
+        else:
+            # We have a 4D file
+            assert len(resampled_nii.shape) == 4
+            resampled_data = resampled_nii.get_data()
+            affine = resampled_nii.affine
+            for index in range(resampled_nii.shape[-1]):
 
-                    # Second, fix the dataframe
-                    out_df = out_df[out_df.image_id != row[1]['image_id']]
-                    this_row = row[1]
-                    this_row.image_id = this_id
-                    out_df.append(this_row)
+                # First save the files separately
+                this_nii = nb.Nifti1Image(resampled_data[..., index],
+                                            affine)
+                this_id = int("%i%i" % (-row[1]['image_id'], index))
+                this_file = os.path.join(resampled_path,
+                    "%06d%s" % (this_id, ext))
+                this_nii.to_filename(this_file)
+
+                # Second, fix the dataframe
+                out_df = out_df[out_df.image_id != row[1]['image_id']]
+                this_row = row[1].copy()
+                this_row.image_id = this_id
+                out_df = out_df.append(this_row)
 
     return out_df
 
@@ -129,12 +129,13 @@ def get_frequency_map(images_df, dest_dir, target):
 
     target_nii = nb.load(target)
     orig_path = os.path.join(dest_dir, "original")
+    resampled_path = os.path.join(dest_dir, "resampled")
     freq_map_data = np.zeros(target_nii.shape)
     mean_map_data = np.zeros(target_nii.shape)
 
     for row in combined_df.iterrows():
         _, _, ext = split_filename(row[1]['file'])
-        orig_file = os.path.join(orig_path, "%04d%s" % (row[1]['image_id'], ext))
+        orig_file = os.path.join(resampled_path, "%06d%s" % (row[1]['image_id'], ext))
         nb.load(orig_file)
         if not os.path.exists(orig_file):
             urllib.urlretrieve(row[1]['file'], orig_file)
@@ -186,7 +187,8 @@ if __name__ == '__main__':
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
     
-    combined_df = download_and_resample(combined_df, dest_dir, target)
+    combined_df = mem.cache(download_and_resample)(combined_df,
+                                                   dest_dir, target)
     
     freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
