@@ -82,8 +82,11 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
     axarr = scatter_matrix(df, figsize=(10, 10),
                            marker='o', c=np.array(list(colors)), diagonal=None,
                            alpha=1.0)
+
+    plt.grid('off')
     plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
-               factor_labels, title=legend_title, loc='best')
+               factor_labels, title=legend_title, loc='best',
+               ncol=3)
     if title is not None:
         plt.title(title)
 
