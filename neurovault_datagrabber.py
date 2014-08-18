@@ -62,6 +62,7 @@ def get_images_with_collections_df():
                       suffixes=('_image', '_collection'))
     return combined_df
 
+
 def download_and_resample(images_df, dest_dir, target):
     """Downloads all stat maps and resamples them to a common space.
     """
@@ -100,6 +101,7 @@ def get_frequency_map(images_df, dest_dir, target):
     target_nii = nb.load(target)
     orig_path = os.path.join(dest_dir, "original")
     freq_map_data = np.zeros(target_nii.shape)
+    mean_map_data = np.zeros(target_nii.shape)
 
     for row in combined_df.iterrows():
         _, _, ext = split_filename(row[1]['file'])
@@ -112,14 +114,27 @@ def get_frequency_map(images_df, dest_dir, target):
                                      target_nii.shape,
                                      interpolation="nearest")
         data = resampled_nii.get_data().squeeze()
-        data[data != 0] = 1
+        data[np.isnan(data)] = 0
+        data = np.abs(data)
+        # Put things that are severely not significant to 0
+        data[data < 1] = 0
+        if len(data.shape) == 4:
+            for d in np.rollaxis(data, -1):
+                mean_map_data += d
+        else:
+            mean_map_data += data
+
+        # Keep only things that are very significant
+        data[data < 3] = 0
         if len(data.shape) == 4:
             for d in np.rollaxis(data, -1):
                 freq_map_data += d
         else:
             freq_map_data += data
 
-    return nb.Nifti1Image(freq_map_data, target_nii.get_affine())
+
+    return (nb.Nifti1Image(freq_map_data, target_nii.get_affine()),
+            nb.Nifti1Image(mean_map_data, target_nii.get_affine()))
 
 
 if __name__ == '__main__':
@@ -127,21 +142,29 @@ if __name__ == '__main__':
     mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
     combined_df = mem.cache(get_images_with_collections_df)()
 
+    # The following maps are not brain maps
+    faulty_ids = [96, 97, 98]
+    combined_df = combined_df[~combined_df.image_id.isin(faulty_ids)]
+
+
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
     
     #restrict to Z-, F-, or T-maps
     combined_df = combined_df[combined_df['map_type'].isin(["Z","F","T"])]
-    print combined_df["name_collection"].value_counts() 
+    print combined_df["name_collection"].value_counts()
     
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
     
     download_and_resample(combined_df, dest_dir, target)
     
-    freq_nii = get_frequency_map(combined_df, dest_dir, target)
+    freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
+    mean_nii.to_filename("/tmp/mean_map.nii.gz")
 
     plot_stat_map(freq_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
+                  display_mode="z")
+    plot_stat_map(mean_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
                   display_mode="z")
     plt.show()
         
