@@ -68,13 +68,14 @@ def get_images_with_collections_df():
 def download_and_resample(images_df, dest_dir, target):
     """Downloads all stat maps and resamples them to a common space.
     """
-    
+
     target_nii = nb.load(target)
     orig_path = os.path.join(dest_dir, "original")
     mkdir_p(orig_path)
     resampled_path = os.path.join(dest_dir, "resampled")
     mkdir_p(resampled_path)
-    
+    out_df = combined_df.copy()
+
     for row in combined_df.iterrows():
         # Downloading the file to the "original" subfolder
         _, _, ext = split_filename(row[1]['file'])
@@ -82,23 +83,49 @@ def download_and_resample(images_df, dest_dir, target):
         if not os.path.exists(orig_file):
             print "Downloading %s" % orig_file
             urllib.urlretrieve(row[1]['file'], orig_file)
-        
+
         # Resampling the file to target and saving the output in the "resampled"
         # folder
-        resampled_file = os.path.join(resampled_path, 
-            "%04d_2mm%s" % (row[1]['image_id'], ext))
+        resampled_file = os.path.join(resampled_path,
+                                      "%04d_2mm%s" % (row[1]['image_id'], ext))
         if not os.path.exists(resampled_file):
             print "Resampling %s" % orig_file
-            resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
+            resampled_nii = resample_img(orig_file, target_nii.get_affine(),
                 target_nii.shape)
             resampled_nii = nb.Nifti1Image(resampled_nii.get_data().squeeze(),
                                            resampled_nii.get_affine())
-            resampled_nii.to_filename(resampled_file)
+            if len(resampled_nii.shape) == 3:
+                resampled_nii.to_filename(resampled_file)
+            else:
+                # We have a 4D file
+                assert len(resampled_nii.shape) == 4
+                resampled_data = resampled_nii.get_data()
+                affine = resampled_nii.affine
+                for index in range(resampled_nii.shape[-1]):
+
+                    # First save the files separately
+                    this_nii = nb.Nifti1Image(resampled_data[..., index],
+                                              affine)
+                    this_id = int("%i%i" % (-row[1]['image_id'], index))
+                    this_file = os.path.join(resampled_path,
+                        "%06d_2mm%s" % (this_id, ext))
+                    this_nii.to_filename(this_file)
+
+                    # Second, fix the dataframe
+                    out_df = out_df[out_df.image_id != row[1]['image_id']]
+                    this_row = row[1]
+                    this_row.image_id = this_id
+                    out_df.append(this_row)
+
+    return out_df
 
 
 def get_frequency_map(images_df, dest_dir, target):
     """
     """
+    mask_img = 'gm_mask.nii.gz'
+    mask = nb.load(mask_img).get_data().astype(np.bool)
+
 
     target_nii = nb.load(target)
     orig_path = os.path.join(dest_dir, "original")
@@ -117,6 +144,7 @@ def get_frequency_map(images_df, dest_dir, target):
                                      interpolation="nearest")
         data = resampled_nii.get_data().squeeze()
         data[np.isnan(data)] = 0
+        data[np.logical_not(mask)] = 0
         data = np.abs(data)
         # Put things that are severely not significant to 0
         data[data < 1] = 0
@@ -145,7 +173,7 @@ if __name__ == '__main__':
     combined_df = mem.cache(get_images_with_collections_df)()
 
     # The following maps are not brain maps
-    faulty_ids = [96, 97, 98]
+    faulty_ids = [96, 97, 98, 339]
     combined_df = combined_df[~combined_df.image_id.isin(faulty_ids)]
 
 
@@ -158,7 +186,7 @@ if __name__ == '__main__':
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
     
-    download_and_resample(combined_df, dest_dir, target)
+    combined_df = download_and_resample(combined_df, dest_dir, target)
     
     freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
