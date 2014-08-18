@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 # loading data and metadata
 
 data_dir = "/tmp/neurovault_analysis"
-mask = '/usr/share/fsl/data/standard/MNI152_T1_2mm_brain_mask.nii.gz'
+mask = 'gm_mask.nii.gz'
 
 faulty_ids = [96, 97, 98]
 
