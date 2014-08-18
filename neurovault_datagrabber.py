@@ -174,22 +174,30 @@ if __name__ == '__main__':
     combined_df = mem.cache(get_images_with_collections_df)()
 
     # The following maps are not brain maps
-    faulty_ids = [96, 97, 98, 338, 339]
+    faulty_ids = [96, 97, 98]
+    # And the following are crap
+    faulty_ids.extend([338, 339])
     combined_df = combined_df[~combined_df.image_id.isin(faulty_ids)]
+
+    # Collection 78 is very different from the rest of the data, and
+    # seems to be a first-level analysis
+    faulty_collections = [78, ]
+    combined_df = combined_df[
+            ~combined_df.collection_id.isin(faulty_collections)]
 
 
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
-    
+
     #restrict to Z-, F-, or T-maps
     combined_df = combined_df[combined_df['map_type'].isin(["Z","F","T"])]
     print combined_df["name_collection"].value_counts()
-    
+
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
-    
+
     combined_df = mem.cache(download_and_resample)(combined_df,
                                                    dest_dir, target)
-    
+
     freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
     mean_nii.to_filename("/tmp/mean_map.nii.gz")

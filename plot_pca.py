@@ -21,7 +21,6 @@ metadata = pd.DataFrame.from_csv(os.path.join(data_dir, 'metadata.csv'))
 
 # filter out faulty images
 metadata = metadata[~metadata.image_id.isin(faulty_ids)]
-
 # replace NaNs by unknown
 metadata.fillna('unknown')
 
@@ -31,32 +30,17 @@ le = LabelEncoder()
 y = le.fit_transform(target)
 
 images = [os.path.join(data_dir, 'resampled',
-                       '%04d_2mm.nii.gz' % row[1]['image_id'])
+                       '%06d.nii.gz' % row[1]['image_id'])
           for row in metadata.iterrows()]
 
 masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
 X = masker.fit_transform(images)
 
 # -------------------------------------------
-# quick PCA and plotting
-
-from sklearn.decomposition import PCA
-from pandas.tools.plotting import scatter_matrix
-
-pca = PCA(n_components=3)
-X_pca = pca.fit_transform(X)
-
-df_pca = pd.DataFrame(dict(zip(np.arange(pca.n_components), X_pca.T)))
-
-scatter_matrix(df_pca, alpha=0.2, figsize=(6, 6), diagonal='kde')
-
-# -------------------------------------------
 # ugly code to plot scatter matrices
 
 import matplotlib.colors
-import numpy as np
-from pandas.tools.plotting import scatter_matrix
-from scipy.stats import gaussian_kde
+#from scipy.stats import gaussian_kde
 
 
 def factor_scatter_matrix(df, factor, factor_labels, legend_title,
@@ -99,7 +83,7 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
                            marker='o', c=np.array(list(colors)), diagonal=None,
                            alpha=1.0)
     plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
-               factor_labels, title=legend_title)
+               factor_labels, title=legend_title, loc='best')
     if title is not None:
         plt.title(title)
 
@@ -112,20 +96,36 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
 
     return axarr, color_map
 
+# -------------------------------------------
+# quick PCA and plotting
+
+from sklearn.decomposition import PCA
+from pandas.tools.plotting import scatter_matrix
+
+pca = PCA(n_components=3)
+X_pca = pca.fit_transform(X)
+
+df_pca = pd.DataFrame(dict(zip(np.arange(pca.n_components), X_pca.T)))
+
+scatter_matrix(df_pca, alpha=0.2, figsize=(6, 6), diagonal='kde')
+
+
 df_pca['label'] = y
 factor_scatter_matrix(df_pca, 'label', le.inverse_transform(list(set(y))),
                       'collection_id')
 
-# -------------------------------------------
-# quick PCA and plotting
+if 0:
+    # -------------------------------------------
+    # T-SNE
 
-from sklearn.manifold import TSNE
+    from sklearn.manifold import TSNE
 
-tsne = TSNE(n_components=3, perplexity=5)
-X_tsne = tsne.fit_transform(X.astype('float64'))
+    tsne = TSNE(n_components=3, perplexity=5)
+    X_tsne = tsne.fit_transform(X.astype('float64'))
 
-df_tsne = pd.DataFrame(dict(zip(np.arange(tsne.n_components), X_tsne.T)))
-df_tsne['label'] = y
-factor_scatter_matrix(df_tsne, 'label', le.inverse_transform(list(set(y))),
-                      'collection_id')
+    df_tsne = pd.DataFrame(dict(zip(np.arange(tsne.n_components), X_tsne.T)))
+    df_tsne['label'] = y
+    factor_scatter_matrix(df_tsne, 'label', le.inverse_transform(list(set(y))),
+                        'collection_id')
+
 plt.show()
