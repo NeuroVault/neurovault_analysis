@@ -102,7 +102,6 @@ def download_and_resample(images_df, dest_dir, target):
             resampled_data = resampled_nii.get_data()
             affine = resampled_nii.affine
             for index in range(resampled_nii.shape[-1]):
-
                 # First save the files separately
                 this_nii = nb.Nifti1Image(resampled_data[..., index],
                                             affine)
@@ -177,14 +176,9 @@ if __name__ == '__main__':
     faulty_ids = [96, 97, 98]
     # And the following are crap
     faulty_ids.extend([338, 339])
+    # 335 is a duplicate of 336
+    faulty_ids.extend([335, ])
     combined_df = combined_df[~combined_df.image_id.isin(faulty_ids)]
-
-    # Collection 78 is very different from the rest of the data, and
-    # seems to be a first-level analysis
-    faulty_collections = [78, ]
-    combined_df = combined_df[
-            ~combined_df.collection_id.isin(faulty_collections)]
-
 
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
 
@@ -197,6 +191,11 @@ if __name__ == '__main__':
 
     combined_df = mem.cache(download_and_resample)(combined_df,
                                                    dest_dir, target)
+
+    # Now remove -3360, -3362, and -3364, that are mean images, and not Z
+    # scores
+    not_Zscr = [-3360, -3362, -3364]
+    combined_df = combined_df[~combined_df.image_id.isin(not_Zscr)]
 
     freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
     freq_nii.to_filename("/tmp/freq_map.nii.gz")
