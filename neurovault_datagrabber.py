@@ -174,7 +174,7 @@ if __name__ == '__main__':
     combined_df = mem.cache(get_images_with_collections_df)()
 
     # The following maps are not brain maps
-    faulty_ids = [96, 97, 98, 339]
+    faulty_ids = [96, 97, 98, 338, 339]
     combined_df = combined_df[~combined_df.image_id.isin(faulty_ids)]
 
 
