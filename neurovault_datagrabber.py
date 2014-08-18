@@ -22,6 +22,7 @@ def mkdir_p(path):
             pass
         else: raise
 
+
 def get_collections_df():
     """Downloads metadata about collections/papers stored in NeuroVault and
     return it as a pandas DataFrame"""
@@ -49,6 +50,7 @@ def get_images_df():
     images_df['image_id'] = images_df['url'].apply(lambda x: int(x.split("/")[-2]))
     images_df.rename(columns={'collection':'collection_id'}, inplace=True)
     return images_df
+
 
 def get_images_with_collections_df():
     """Downloads metadata about images/statistical maps stored in NeuroVault and
@@ -125,7 +127,7 @@ def get_frequency_map(images_df, dest_dir, target):
             mean_map_data += data
 
         # Keep only things that are very significant
-        data[data < 3] = 0
+        data = data > 3
         if len(data.shape) == 4:
             for d in np.rollaxis(data, -1):
                 freq_map_data += d
