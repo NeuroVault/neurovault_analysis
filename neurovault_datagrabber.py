@@ -8,8 +8,9 @@ import json
 import urllib, os, errno
 from nipype.utils.filemanip import split_filename
 
+from joblib import Memory
+
 from nilearn.image import resample_img
-from nilearn.input_data.nifti_masker import NiftiMasker
 from nilearn.plotting.img_plotting import plot_stat_map
 
 
@@ -22,10 +23,10 @@ def mkdir_p(path):
         else: raise
 
 def get_collections_df():
-    """Downloads metadata about collections/papers stored in NeuroVault and 
+    """Downloads metadata about collections/papers stored in NeuroVault and
     return it as a pandas DataFrame"""
     
-    request=Request('http://neurovault.org/api/collections/?format=json')
+    request = Request('http://neurovault.org/api/collections/?format=json')
     response = urlopen(request)
     elevations = response.read()
     data = json.loads(elevations)
@@ -76,6 +77,7 @@ def download_and_resample(images_df, dest_dir, target):
         _, _, ext = split_filename(row[1]['file'])
         orig_file = os.path.join(orig_path, "%04d%s" % (row[1]['image_id'], ext))
         if not os.path.exists(orig_file):
+            print "Downloading %s" % orig_file
             urllib.urlretrieve(row[1]['file'], orig_file)
         
         # Resampling the file to target and saving the output in the "resampled"
@@ -83,41 +85,48 @@ def download_and_resample(images_df, dest_dir, target):
         resampled_file = os.path.join(resampled_path, 
             "%04d_2mm%s" % (row[1]['image_id'], ext))
         if not os.path.exists(resampled_file):
+            print "Resampling %s" % orig_file
             resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
                 target_nii.shape)
-            resampled_nii = nb.Nifti1Image(resampled_nii.get_data().reshape(resampled_nii.shape[:3]), 
+            resampled_nii = nb.Nifti1Image(resampled_nii.get_data().squeeze(),
                                            resampled_nii.get_affine())
             resampled_nii.to_filename(resampled_file)
-            
+
+
 def get_frequency_map(images_df, dest_dir, target):
     """
     """
-    
+
     target_nii = nb.load(target)
     orig_path = os.path.join(dest_dir, "original")
     freq_map_data = np.zeros(target_nii.shape)
-    
+
     for row in combined_df.iterrows():
         _, _, ext = split_filename(row[1]['file'])
         orig_file = os.path.join(orig_path, "%04d%s" % (row[1]['image_id'], ext))
         nb.load(orig_file)
         if not os.path.exists(orig_file):
             urllib.urlretrieve(row[1]['file'], orig_file)
-        
-        resampled_nii = resample_img(orig_file, target_nii.get_affine(), 
-                                     target_nii.shape, 
+
+        resampled_nii = resample_img(orig_file, target_nii.get_affine(),
+                                     target_nii.shape,
                                      interpolation="nearest")
-        data = resampled_nii.get_data()
+        data = resampled_nii.get_data().squeeze()
         data[data != 0] = 1
         if len(data.shape) == 4:
-            data.shape = data.shape[:3]
-        freq_map_data += data
-        
+            for d in np.rollaxis(data, -1):
+                freq_map_data += d
+        else:
+            freq_map_data += data
+
     return nb.Nifti1Image(freq_map_data, target_nii.get_affine())
 
 
 if __name__ == '__main__':
-    combined_df = get_images_with_collections_df()
+    # Use a joblib memory, to avoid depending on an Internet connection
+    mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
+    combined_df = mem.cache(get_images_with_collections_df)()
+
     print combined_df[['DOI', 'url_collection', 'name_image', 'file']]
     
     #restrict to Z-, F-, or T-maps
@@ -130,10 +139,10 @@ if __name__ == '__main__':
     download_and_resample(combined_df, dest_dir, target)
     
     freq_nii = get_frequency_map(combined_df, dest_dir, target)
-    
+    freq_nii.to_filename("/tmp/freq_map.nii.gz")
+
     plot_stat_map(freq_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
                   display_mode="z")
-    freq_nii.to_filename("/tmp/freq_map.nii.gz")
     plt.show()
         
     combined_df.to_csv('%s/metadata.csv' % dest_dir, encoding='utf8')
