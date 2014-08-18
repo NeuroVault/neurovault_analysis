@@ -128,4 +128,18 @@ if 0:
     factor_scatter_matrix(df_tsne, 'label', le.inverse_transform(list(set(y))),
                         'collection_id')
 
+if 1:
+    # -------------------------------------------
+    # MSD
+
+    from sklearn.manifold import MDS
+
+    mds = MDS(n_components=3)
+    X_mds = mds.fit_transform(X.astype('float64'))
+
+    df_mds = pd.DataFrame(dict(zip(np.arange(mds.n_components), X_mds.T)))
+    df_mds['label'] = y
+    factor_scatter_matrix(df_mds, 'label', le.inverse_transform(list(set(y))),
+                        'collection_id')
+
 plt.show()
