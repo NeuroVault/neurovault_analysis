@@ -1,5 +1,5 @@
 from pandas.io.json import json_normalize
-from urllib2 import Request, urlopen
+from urllib2 import Request, urlopen, HTTPError
 import pandas as pd
 import nibabel as nb
 import numpy as np
@@ -13,6 +13,9 @@ from joblib import Memory
 from nilearn.image import resample_img
 from nilearn.masking import compute_background_mask, _extrapolate_out_mask
 from nilearn.plotting.img_plotting import plot_stat_map
+
+# Use a joblib memory, to avoid depending on an Internet connection
+mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
 
 
 def mkdir_p(path):
@@ -186,10 +189,45 @@ def get_frequency_map(images_df, dest_dir, target):
             nb.Nifti1Image(mean_map_data, target_nii.get_affine()))
 
 
+def url_get(url):
+    request = Request(url)
+    response = urlopen(request)
+    return response.read()
+
+
+def get_neurosynth_terms(combined_df):
+    """ Grab terms for each image, decoded with neurosynth"""
+    terms = list()
+    from sklearn.feature_extraction import DictVectorizer
+    vectorizer = DictVectorizer()
+    image_ids = list()
+    for row in combined_df.iterrows():
+        image_id = row[1]['image_id']
+        image_ids.append(int(image_id))
+        print "Fetching terms for image %i" % image_id
+        image_url = row[1]['url_image'].split('/')[-2]
+
+        try:
+            elevations = mem.cache(url_get)(
+                        'http://beta.neurosynth.org/decode/data/?neurovault=%s'
+                        % image_url)
+            data = json.loads(elevations)['data']
+            data = dict([(i['feature'], i['r']) for i in data])
+        except HTTPError:
+            data = {}
+        terms.append(data)
+    X = vectorizer.fit_transform(terms).toarray()
+    term_dframe = dict([('neurosynth decoding %s' % name, X[:, idx])
+                        for name, idx in vectorizer.vocabulary_.items()])
+    term_dframe['image_id'] = image_ids
+
+    return pd.DataFrame(term_dframe)
+
+
+
+
 if __name__ == '__main__':
-    # Use a joblib memory, to avoid depending on an Internet connection
-    mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
-    mem.clear()
+    #mem.clear()
     combined_df = mem.cache(get_images_with_collections_df)()
 
     # The following maps are not brain maps
@@ -204,7 +242,9 @@ if __name__ == '__main__':
 
     #restrict to Z-, F-, or T-maps
     combined_df = combined_df[combined_df['map_type'].isin(["Z","F","T"])]
+    terms_df = get_neurosynth_terms(combined_df)
     print combined_df["name_collection"].value_counts()
+    combined_df = combined_df.merge(terms_df, on=['image_id', ])
 
     dest_dir = "/tmp/neurovault_analysis"
     target = "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz"
