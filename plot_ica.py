@@ -29,8 +29,10 @@ ica_img = masker.inverse_transform(ica_maps)
 ica_img.to_filename('ica.nii.gz')
 
 # Use the terms from neurosynth to label the ICAs
+# We exclude 'action', as it is almost everywhere and is non descriptive
 terms = metadata[[c for c in metadata.columns
-                  if c.startswith('neurosynth decoding')]]
+                  if c.startswith('neurosynth decoding')
+                  and not 'action' in c]]
 terms = terms.fillna(0)
 term_matrix = terms.as_matrix()
 # Keep only the 10 first values per entry, as Neurosynth is not reliable
@@ -43,39 +45,48 @@ term_matrix[term_matrix < .33] = 0
 # data
 ica_terms = np.dot(term_matrix.T, fast_ica.components_.T).T
 col_names = [c[20:] for c in metadata.columns
-             if c.startswith('neurosynth decoding')]
+             if c.startswith('neurosynth decoding')
+             and not 'action' in c]
+
+# Hack to avoid having shorter names appear bigger
+max_size = max([len(n) for n in col_names])
+col_names_scaled = [n.center(max_size, '\xa0') for n in col_names]
 
 try:
     # Generate figures
 
     # word_cloud install via
     # pip install --user git+https://github.com/amueller/word_cloud.git
-    from pytagcloud import create_tag_image, make_tags
+    import wordcloud
     from scipy import stats
     from nilearn.plotting import plot_stat_map
 
-    def scalef(count, mincount, maxcount, minsize, maxsize):
-        count = float(count - mincount) / (maxcount - mincount)
-        count *= .99 * maxsize
-        return int(count)
-
     for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
+        if -ic.min() > ic.max():
+            # Flip the map's sign for prettiness
+            ic = -ic
+            ic_terms = -ic_terms
         count_thr = stats.scoreatpercentile(np.abs(ic_terms), 75)
-        this_count = [(w, np.abs(c)) for w, c in zip(col_names, ic_terms)
+        this_count = [(w, np.abs(c)) for w, c in zip(col_names_scaled, ic_terms)
                       if np.abs(c) > count_thr]
-        colors = [((255, 0, 0) if c > 0 else (0, 0, 255)) for c in ic_terms
-                      if np.abs(c) > count_thr]
+        colors = dict([(w, (255, 0, 0) if c > 0 else (0, 0, 255))
+                       for w, c in zip(col_names_scaled, ic_terms)
+                      if np.abs(c) > count_thr])
+        def color_func(word, *args):
+            return colors[word]
 
-        tags = make_tags(this_count, maxsize=120, scalef=scalef,
-                         colors=colors)
+        elements = wordcloud.fit_words(this_count, width=500, height=500,
+                                       prefer_horiz=.99)
+        # Draw the positioned words to a PNG file.
+        wordcloud.draw(elements, 'component_%i_terms.png' % idx,
+                       width=500, height=500, scale=2,
+                       color_func=color_func, bg_color=(255, 255, 255))
 
-        create_tag_image(tags,
-                         'component_%i_terms.png' % idx, size=(900, 600),
-                         #fontname='Molengo', layout=3)
-                         fontname='Lobster', layout=3)
         ic_thr = stats.scoreatpercentile(np.abs(ic), 85)
         ic_img = masker.inverse_transform(ic)
-        plot_stat_map(ic_img, threshold=ic_thr)
+        important_words = np.array(col_names)[np.argsort(ic_terms)[-3:]]
+        plot_stat_map(ic_img, threshold=ic_thr,
+                      title=', '.join(important_words))
         plt.savefig('component_%i_ic.png' % idx)
 except ImportError:
     pass
