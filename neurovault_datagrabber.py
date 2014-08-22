@@ -11,6 +11,7 @@ from nipype.utils.filemanip import split_filename
 from joblib import Memory
 
 from nilearn.image import resample_img
+from nilearn.masking import compute_background_mask, _extrapolate_out_mask
 from nilearn.plotting.img_plotting import plot_stat_map
 
 
@@ -26,7 +27,7 @@ def mkdir_p(path):
 def get_collections_df():
     """Downloads metadata about collections/papers stored in NeuroVault and
     return it as a pandas DataFrame"""
-    
+
     request = Request('http://neurovault.org/api/collections/?format=json')
     response = urlopen(request)
     elevations = response.read()
@@ -34,8 +35,9 @@ def get_collections_df():
     collections_df = json_normalize(data)
     collections_df.rename(columns={'id':'collection_id'}, inplace=True)
     collections_df.set_index("collection_id")
-    
+
     return collections_df
+
 
 def get_images_df():
     """Downloads metadata about images/statistical maps stored in NeuroVault and 
@@ -84,16 +86,33 @@ def download_and_resample(images_df, dest_dir, target):
             print "Downloading %s" % orig_file
             urllib.urlretrieve(row[1]['file'], orig_file)
 
+        # Compute the background and extrapolate outside of the mask
+        print "Extrapolating %s" % orig_file
+        niimg = nb.load(orig_file)
+        data = niimg.get_data().squeeze()
+        niimg = nb.Nifti1Image(data, niimg.affine,
+                               header=niimg.get_header())
+        bg_mask = compute_background_mask(niimg).get_data()
+        # Test if the image has been masked:
+        out_of_mask = data[np.logical_not(bg_mask)]
+        if np.all(np.isnan(out_of_mask)) or len(np.unique(out_of_mask)) == 1:
+            # Need to extrapolate
+            data = _extrapolate_out_mask(data.astype(np.float), bg_mask,
+                                         iterations=3)[0]
+        niimg = nb.Nifti1Image(data, niimg.affine,
+                               header=niimg.get_header())
+        del out_of_mask, bg_mask
         # Resampling the file to target and saving the output in the "resampled"
         # folder
         resampled_file = os.path.join(resampled_path,
                                       "%06d%s" % (row[1]['image_id'], ext))
 
         print "Resampling %s" % orig_file
-        resampled_nii = resample_img(orig_file, target_nii.get_affine(),
+        resampled_nii = resample_img(niimg, target_nii.get_affine(),
             target_nii.shape)
         resampled_nii = nb.Nifti1Image(resampled_nii.get_data().squeeze(),
-                                        resampled_nii.get_affine())
+                                       resampled_nii.get_affine(),
+                                       header=niimg.get_header())
         if len(resampled_nii.shape) == 3:
             resampled_nii.to_filename(resampled_file)
         else:
@@ -170,6 +189,7 @@ def get_frequency_map(images_df, dest_dir, target):
 if __name__ == '__main__':
     # Use a joblib memory, to avoid depending on an Internet connection
     mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
+    mem.clear()
     combined_df = mem.cache(get_images_with_collections_df)()
 
     # The following maps are not brain maps
@@ -205,6 +225,8 @@ if __name__ == '__main__':
                   display_mode="z")
     plot_stat_map(mean_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
                   display_mode="z")
-    plt.show()
-        
     combined_df.to_csv('%s/metadata.csv' % dest_dir, encoding='utf8')
+
+    plt.show()
+
+

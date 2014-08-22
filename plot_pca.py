@@ -15,12 +15,8 @@ from sklearn.preprocessing import LabelEncoder
 data_dir = "/tmp/neurovault_analysis"
 mask = 'gm_mask.nii.gz'
 
-faulty_ids = [96, 97, 98]
-
 metadata = pd.DataFrame.from_csv(os.path.join(data_dir, 'metadata.csv'))
 
-# filter out faulty images
-metadata = metadata[~metadata.image_id.isin(faulty_ids)]
 # replace NaNs by unknown
 metadata.fillna('unknown')
 
@@ -36,6 +32,11 @@ images = [os.path.join(data_dir, 'resampled',
 masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
 X = masker.fit_transform(images)
 
+from text_analysis import group_names, extract_documents, vectorize
+
+documents = extract_documents(metadata)
+term_freq = vectorize(documents)
+
 # -------------------------------------------
 # ugly code to plot scatter matrices
 
@@ -43,7 +44,7 @@ import matplotlib.colors
 #from scipy.stats import gaussian_kde
 
 
-def factor_scatter_matrix(df, factor, factor_labels, legend_title,
+def factor_scatter_matrix(df, factor, factor_labels, legend_title=None,
                           palette=None, title=None):
     '''Create a scatter matrix of the variables in df, with differently colored
     points depending on the value of df[factor].
@@ -67,6 +68,8 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
 
     if palette is None:
         palette = sns.color_palette("gist_ncar", len(set(factor)))
+    elif isinstance(palette, basestring):
+        palette = sns.color_palette(palette, len((set(factor))))
     else:
         palette = sns.color_palette(palette)
 
@@ -83,12 +86,13 @@ def factor_scatter_matrix(df, factor, factor_labels, legend_title,
                            marker='o', c=np.array(list(colors)), diagonal=None,
                            alpha=1.0)
 
-    plt.grid('off')
-    plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
-               factor_labels, title=legend_title, loc='best',
-               ncol=3)
+    if legend_title is not None:
+        plt.grid('off')
+        plt.legend([plt.Circle((0, 0), fc=color) for color in palette],
+                factor_labels, title=legend_title, loc='best',
+                ncol=3)
     if title is not None:
-        plt.title(title)
+        plt.suptitle(title)
 
     # for rc in xrange(len(df.columns)):
     #     for group in classes:
@@ -144,5 +148,13 @@ if 1:
     df_mds['label'] = y
     factor_scatter_matrix(df_mds, 'label', le.inverse_transform(list(set(y))),
                         'collection_id')
+
+
+    for freq, name in zip(term_freq.T, group_names):
+        df_mds['label'] = freq
+        factor_scatter_matrix(df_mds, 'label',
+                            le.inverse_transform(list(set(y))),
+                            title=name, palette='hot')
+
 
 plt.show()
