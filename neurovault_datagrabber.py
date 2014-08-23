@@ -1,12 +1,20 @@
-from pandas.io.json import json_normalize
-from urllib2 import Request, urlopen, HTTPError
-import pandas as pd
-import nibabel as nb
-import numpy as np
-import pylab as plt
+""" Code to grab the data from NeuroVault, and compute a map of
+frequency of activation in the brain.
+"""
+# Authors: Chris Filo Gorgolewski, Gael Varoquaux
+# License: BSD
+
 import json
 import urllib, os, errno
+from urllib2 import Request, urlopen, HTTPError
+
+import pandas as pd
+from pandas.io.json import json_normalize
+import numpy as np
+import pylab as plt
+
 from nipype.utils.filemanip import split_filename
+import nibabel as nb
 
 from joblib import Memory
 

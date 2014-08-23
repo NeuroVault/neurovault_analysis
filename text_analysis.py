@@ -1,8 +1,23 @@
-import os
+""" Text analysis on the metadata, to infer some topics and terms
+"""
+# Author: Gael Varoquaux
+# License: BSD
+
 import re
 
-import pandas as pd
 import numpy as np
+
+
+# Groups of terms that appear often (careful to only have double spaces)
+GROUPS = [
+          ('semantic', 'linguistic', 'language', 'word', 'words',
+          'reading', 'verb', 'voice'),
+          ('motor', 'button', 'hand'),
+          ('face', 'imagery', 'scrambled', 'checkerboard'),
+         ]
+
+GROUP_NAMES = ('language', 'audio', 'motor', 'visual', )
+
 
 def to_str(value):
     if isinstance(value, float):
@@ -16,6 +31,7 @@ def to_str(value):
         #for word in exclude_words:
         #    value = value.replace(' %s ' % word, ' ')
         return value
+
 
 def extract_documents(metadata, collection_data=False):
     documents = []
@@ -36,22 +52,12 @@ def extract_documents(metadata, collection_data=False):
     return documents
 
 
-# Groups of terms that appear often (careful to only have double spaces)
-groups = [
-          ('semantic', 'linguistic', 'language', 'word', 'words',
-          'reading', 'verb', 'voice'),
-          ('motor', 'button', 'hand'),
-          ('face', 'imagery', 'scrambled', 'checkerboard'),
-         ]
-
-group_names = ('language', 'audio', 'motor', 'visual', )
-
 def vectorize(documents):
     # A hand-code vectorizer (probably horrible):
     X = []
     for this_doc in documents:
         this_x = list()
-        for this_group in groups:
+        for this_group in GROUPS:
             this_count = 0
             for word in this_group:
                 this_count += len(re.compile(' %s ' % word).findall(this_doc))
@@ -62,16 +68,3 @@ def vectorize(documents):
     return X
 
 
-if __name__ == '__main__':
-    from matplotlib import pyplot as plt
-
-    data_dir = "/tmp/neurovault_analysis"
-
-    metadata = pd.DataFrame.from_csv(os.path.join(data_dir, 'metadata.csv'))
-
-    documents = extract_documents(metadata)
-    X = vectorize(documents)
-
-    plt.imshow(X, aspect='auto', interpolation='nearest')
-    plt.xticks(range(len(group_names)), group_names)
-    plt.show()

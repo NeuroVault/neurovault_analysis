@@ -50,6 +50,9 @@ ica_terms = np.dot(term_matrix.T, fast_ica.components_.T).T
 col_names = [c[20:] for c in metadata.columns
              if c.startswith('neurosynth decoding')]
 
+if not os.path.exists('ica_maps'):
+    os.mkdir('ica_maps')
+
 # -------------------------------------------
 # Generate figures
 for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
@@ -64,7 +67,7 @@ for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
     important_terms = np.array(col_names)[np.argsort(ic_terms)[-4:]]
     plot_stat_map(ic_img, threshold=ic_thr,
                   title=', '.join(important_terms[::-1]))
-    plt.savefig('component_%i_ic.png' % idx)
-    plt.savefig('component_%i_ic.pdf' % idx)
+    plt.savefig('ica_maps/component_%i_ic.png' % idx)
+    plt.savefig('ica_maps/component_%i_ic.pdf' % idx)
 
 
