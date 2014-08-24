@@ -20,7 +20,7 @@ from joblib import Memory
 
 from nilearn.image import resample_img
 from nilearn.masking import compute_background_mask, _extrapolate_out_mask
-from nilearn.plotting.img_plotting import plot_stat_map
+from nilearn.plotting.img_plotting import plot_anat
 
 # Use a joblib memory, to avoid depending on an Internet connection
 mem = Memory(cachedir='/tmp/neurovault_analysis/cache')
@@ -157,14 +157,13 @@ def get_frequency_map(images_df, dest_dir, target):
 
 
     target_nii = nb.load(target)
-    orig_path = os.path.join(dest_dir, "original")
     resampled_path = os.path.join(dest_dir, "resampled")
     freq_map_data = np.zeros(target_nii.shape)
-    mean_map_data = np.zeros(target_nii.shape)
 
     for row in combined_df.iterrows():
         _, _, ext = split_filename(row[1]['file'])
-        orig_file = os.path.join(resampled_path, "%06d%s" % (row[1]['image_id'], ext))
+        orig_file = os.path.join(resampled_path,
+                                 "%06d%s" % (row[1]['image_id'], ext))
         nb.load(orig_file)
         if not os.path.exists(orig_file):
             urllib.urlretrieve(row[1]['file'], orig_file)
@@ -176,25 +175,17 @@ def get_frequency_map(images_df, dest_dir, target):
         data[np.isnan(data)] = 0
         data[np.logical_not(mask)] = 0
         data = np.abs(data)
-        # Put things that are severely not significant to 0
-        data[data < 1] = 0
-        if len(data.shape) == 4:
-            for d in np.rollaxis(data, -1):
-                mean_map_data += d
-        else:
-            mean_map_data += data
 
         # Keep only things that are very significant
         data = data > 3
         if len(data.shape) == 4:
             for d in np.rollaxis(data, -1):
-                freq_map_data += d
+                freq_map_data += (d != 0)
         else:
             freq_map_data += data
 
 
-    return (nb.Nifti1Image(freq_map_data, target_nii.get_affine()),
-            nb.Nifti1Image(mean_map_data, target_nii.get_affine()))
+    return nb.Nifti1Image(freq_map_data, target_nii.get_affine())
 
 
 def url_get(url):
@@ -265,16 +256,48 @@ if __name__ == '__main__':
     not_Zscr = [-3360, -3362, -3364]
     combined_df = combined_df[~combined_df.image_id.isin(not_Zscr)]
 
-    freq_nii, mean_nii = get_frequency_map(combined_df, dest_dir, target)
-    freq_nii.to_filename("/tmp/freq_map.nii.gz")
-    mean_nii.to_filename("/tmp/mean_map.nii.gz")
-
-    plot_stat_map(freq_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
-                  display_mode="z")
-    plot_stat_map(mean_nii, "/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
-                  display_mode="z")
     combined_df.to_csv('%s/metadata.csv' % dest_dir, encoding='utf8')
 
+
+    #--------------------------------------------------
+    # Plot a map of frequency of activation
+    freq_nii = get_frequency_map(combined_df, dest_dir, target)
+    freq_nii.to_filename("/tmp/freq_map.nii.gz")
+
+    display = plot_anat("/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
+                        display_mode='z',
+                        cut_coords=np.linspace(-30, 60, 7))
+    display.add_overlay(freq_nii, vmin=0, cmap=plt.cm.hot,
+                        colorbar=True)
+    display._colorbar_ax.set_yticklabels(["% 3i" % float(t.get_text())
+            for t in display._colorbar_ax.yaxis.get_ticklabels()])
+    display.title('Number of activations')
+
+    plt.savefig('activation_frequency.png')
+    plt.savefig('activation_frequency.pdf')
+
+
+    #--------------------------------------------------
+    # Plot the frequency of occurence of neurosynth terms
+    # Use the terms from neurosynth to label the ICAs
+    terms = combined_df[[c for c in combined_df.columns
+                         if c.startswith('neurosynth decoding')]]
+    terms = terms.fillna(0)
+    term_matrix = terms.as_matrix()
+    # Labels that have a negative correlation are not present in the map
+    term_matrix[term_matrix < 0] = 0
+
+    term_names = [c[20:] for c in combined_df.columns
+                  if c.startswith('neurosynth decoding')]
+
+    plt.figure(figsize=(5, 20))
+    plt.barh(np.arange(len(term_names)), term_matrix.sum(axis=0))
+    plt.axis('off')
+    plt.axis('tight')
+    plt.tight_layout()
+    for idx, name in enumerate(term_names):
+        plt.text(.1, idx + .1, name)
+    plt.savefig('term_distribution.pdf')
+
+
     plt.show()
-
-
