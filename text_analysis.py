@@ -11,9 +11,11 @@ import numpy as np
 # Groups of terms that appear often (careful to only have double spaces)
 GROUPS = [
           ('semantic', 'linguistic', 'language', 'word', 'words',
-          'reading', 'verb', 'voice'),
+           'reading', 'verb', 'voice'),
+          ('audio', 'auditory', 'audition', 'listening'),
           ('motor', 'button', 'hand'),
-          ('face', 'imagery', 'scrambled', 'checkerboard'),
+          ('face', 'imagery', 'scrambled', 'checkerboard', 'color',
+           'visual', 'visually'),
          ]
 
 GROUP_NAMES = ('language', 'audio', 'motor', 'visual', )
@@ -37,7 +39,9 @@ def extract_documents(metadata, collection_data=False):
     documents = []
     for _, row in metadata.iterrows():
         this_doc = [to_str(row.description_image),
-                    to_str(row.name_image)]
+                    to_str(row.name_image),
+                    to_str(row.contrast_definition),
+                    to_str(row.contrast_definition_cogatlas)]
         if collection_data:
             # Repeat the 3 time image-specific info, to give them more weight
             this_doc = 3 * this_doc

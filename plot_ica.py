@@ -65,7 +65,7 @@ for idx, (ic, ic_terms) in enumerate(zip(ica_maps, ica_terms)):
     ic_img = masker.inverse_transform(ic)
     # Use the 4 terms weighted most as a title
     important_terms = np.array(col_names)[np.argsort(ic_terms)[-4:]]
-    plot_stat_map(ic_img, threshold=ic_thr,
+    plot_stat_map(ic_img, threshold=ic_thr, colorbar=False,
                   title=', '.join(important_terms[::-1]))
     plt.savefig('ica_maps/component_%i_ic.png' % idx)
     plt.savefig('ica_maps/component_%i_ic.pdf' % idx)
