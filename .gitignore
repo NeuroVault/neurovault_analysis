@@ -1,0 +1,15 @@
+*.pyc
+*.so
+*.pyd
+*~
+.#*
+*.lprof
+*.swp
+*.swo
+.DS_Store
+
+*.prof
+
+*.prefs
+.pydevproject
+.idea
