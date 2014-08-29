@@ -160,6 +160,7 @@ def get_frequency_map(images_df, dest_dir, target):
     resampled_path = os.path.join(dest_dir, "resampled")
     freq_map_data = np.zeros(target_nii.shape)
 
+    n_images = 0
     for row in combined_df.iterrows():
         _, _, ext = split_filename(row[1]['file'])
         orig_file = os.path.join(resampled_path,
@@ -181,9 +182,12 @@ def get_frequency_map(images_df, dest_dir, target):
         if len(data.shape) == 4:
             for d in np.rollaxis(data, -1):
                 freq_map_data += (d != 0)
+                n_images +=1
         else:
             freq_map_data += data
+            n_images += 1
 
+    freq_map_data *= 100. / n_images
 
     return nb.Nifti1Image(freq_map_data, target_nii.get_affine())
 
@@ -271,10 +275,10 @@ if __name__ == '__main__':
                         colorbar=True)
     display._colorbar_ax.set_yticklabels(["% 3i" % float(t.get_text())
             for t in display._colorbar_ax.yaxis.get_ticklabels()])
-    display.title('Number of activations')
+    display.title('Percentage of activations (Z or T > 3)')
 
-    plt.savefig('activation_frequency.png')
-    plt.savefig('activation_frequency.pdf')
+    display.savefig('activation_frequency.png')
+    display.savefig('activation_frequency.pdf')
 
 
     #--------------------------------------------------

@@ -31,8 +31,9 @@ term_freq = vectorize(documents)
 all_img = masker.inverse_transform(X.mean(axis=0))
 all_img.to_filename('all.nii.gz')
 display = plot_stat_map(all_img, cut_coords=(-14, 8, 26, 44, 54),
-                        title='all: %i maps' % len(X), colorbar=False,
+                        colorbar=False,
                         display_mode='z')
+display.title('all: %i maps' % len(X), size=17)
 display.savefig('all.png')
 display.savefig('all.pdf')
 
@@ -41,9 +42,9 @@ for name, term_vector in zip(GROUP_NAMES, term_freq.T):
     term_img.to_filename('%s.nii.gz' % name)
 
     display = plot_stat_map(term_img, cut_coords=(-14, 8, 26, 44, 54),
-                            title='%s: %i maps' %
-                                (name, (term_vector != 0).sum()),
                             colorbar=False, display_mode='z')
+    display.title('%s: %i maps' % (name, (term_vector != 0).sum()),
+                  size=17)
     display.savefig('%s.png' % name)
     display.savefig('%s.pdf' % name)
 
