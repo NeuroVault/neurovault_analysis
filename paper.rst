@@ -2,7 +2,7 @@
 Spatial distribution of activations
 ------------------------------------
 
-.. figure:: activation_frequency.pdf
+.. figure:: activation_frequency.png
 
     **Figure 1:** Spatial distribution of activations in NeuroVault
 
@@ -31,7 +31,7 @@ publications coordinates of high-level contrasts that cancel out
 low-level effects of stimuli. On the opposite, the NeuroVault database
 contains a variety of contrasts, including task-versus-baseline maps.
 
-.. figure:: neurosynth_frequency.pdf
+.. figure:: neurosynth_frequency.png
 
     **Figure 2:** Spatial distribution of activations in NeuroSynth
 
@@ -43,7 +43,7 @@ of detections, it is also interesting to look at the average activation
 across all the database. On figure 3 we give the overall average of the
 statistical maps.
 
-.. figure:: all.pdf
+.. figure:: all.png
     :scale: 50
 
     **Figure 3:** Mean map for all the statistical maps in NeuroVault
