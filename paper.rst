@@ -2,7 +2,7 @@
 Spatial distribution of activations
 ------------------------------------
 
-.. figure:: activation_frequency.pdf
+.. figure:: activation_frequency.png
 
     **Figure 1:** Spatial distribution of activations in NeuroVault
 
@@ -26,7 +26,7 @@ Figure 2 shows a similar map computed from a coordinate-based meta
 analysis database, NeuroSynth, that collects coordinates of activation
 foci from the literature [Yarkoni ...]
 
-.. figure:: neurosynth_frequency.pdf
+.. figure:: neurosynth_frequency.png
 
     **Figure 2:** Spatial distribution of activations in NeuroSynth
 
@@ -38,7 +38,7 @@ of detections, it is also interesting to look at the average activation
 across all the database. On figure 3 we give the overall average of the
 statistical maps.
 
-.. figure:: all.pdf
+.. figure:: all.png
     :scale: 50
 
     **Figure 3:** Mean map for all the statistical maps in NeuroVault
