@@ -45,12 +45,12 @@ term_matrix = terms.as_matrix()
 # Labels that have a negative correlation are not present in the map
 term_matrix[term_matrix < 0] = 0
 
-# tf-idf like weighting
-idf = term_matrix.sum(axis=0)
-idf[idf == 0] = 1
-# Log transform of the idf
-idf = np.log(idf.sum() / idf)
-term_matrix *= idf
+## tf-idf like weighting
+#idf = term_matrix.sum(axis=0)
+#idf[idf == 0] = 1
+## Log transform of the idf
+#idf = np.log(idf.sum() / idf)
+#term_matrix *= idf
 
 # Don't use the transform method as it centers the data
 ica_terms = np.dot(term_matrix.T, fast_ica.components_.T).T
