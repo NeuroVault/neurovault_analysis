@@ -12,13 +12,22 @@ import numpy as np
 GROUPS = [
           ('semantic', 'linguistic', 'language', 'word', 'words',
            'reading', 'verb', 'voice'),
-          ('audio', 'auditory', 'audition', 'listening'),
-          ('motor', 'button', 'hand'),
-          ('face', 'imagery', 'scrambled', 'checkerboard', 'color',
-           'visual', 'visually'),
+          ('audio', 'auditory', 'audition', 'listening', 'tone'),
+          ('motor', 'button', 'hand', 'finger', 'foot'),
+          ('button', 'hand', 'finger'),
+          ('imagery', 'color', 'photo',
+           'visual', 'visually', 'viewing', 'pictures',
+           #'house',
+          ),
+          (
+           'checkerboard', 'scrambled',
+          ),
+          ('shoe', 'chair', 'bottle', 'scissors', 'house', 'cat'),
          ]
 
-GROUP_NAMES = ('language', 'audio', 'motor', 'visual', )
+GROUP_NAMES = ('language', 'audio', 'motor', 'hand', 'visual terms',
+               'secondary visual',
+               'objects')
 
 
 def to_str(value):
@@ -28,7 +37,7 @@ def to_str(value):
         value = str(value).replace('.nii', '').replace('.gz', '')
         value = value.lower()
         value = ' %s ' % value
-        exp = re.compile(r"[-_.;,:!?'()]")
+        exp = re.compile(r"[_.;,:!?'()]")
         value = exp.sub(' ', value)
         #for word in exclude_words:
         #    value = value.replace(' %s ' % word, ' ')
@@ -37,11 +46,13 @@ def to_str(value):
 
 def extract_documents(metadata, collection_data=False):
     documents = []
+    def my_to_str(x):
+        return re.sub('(-|>|vs).*$', ' ', to_str(x))
     for _, row in metadata.iterrows():
-        this_doc = [to_str(row.description_image),
-                    to_str(row.name_image),
-                    to_str(row.contrast_definition),
-                    to_str(row.contrast_definition_cogatlas)]
+        this_doc = [my_to_str(row.description_image),
+                    my_to_str(row.name_image),
+                    my_to_str(row.contrast_definition),
+                    my_to_str(row.contrast_definition_cogatlas)]
         if collection_data:
             # Repeat the 3 time image-specific info, to give them more weight
             this_doc = 3 * this_doc
@@ -49,6 +60,7 @@ def extract_documents(metadata, collection_data=False):
                              to_str(row.name_collection)))
 
         this_doc = ' '.join(this_doc)
+        # Replace '>' by ' '
         # Replace spaces by 2 consecutive spaces, to make life easier for
         # the matching code that follows
         this_doc = ' %s ' % re.sub(r'\s+', '  ', this_doc)
