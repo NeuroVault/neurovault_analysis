@@ -31,12 +31,18 @@ term_freq = vectorize(documents)
 
 all_img = masker.inverse_transform(X.mean(axis=0))
 all_img.to_filename('all.nii.gz')
-display = plot_stat_map(all_img, cut_coords=(-14, 8, 26, 44, 54),
+display = plot_stat_map(all_img, cut_coords=(-32, -16, 0, 28, 48, 62),
                         colorbar=False,
                         display_mode='z')
 display.title('all: %i maps' % len(X), size=17)
 display.savefig('all.png')
 display.savefig('all.pdf')
+display = plot_stat_map(all_img, cut_coords=(0, ),
+                        colorbar=True,
+                        display_mode='x')
+display.savefig('all_x.png')
+display.savefig('all_x.pdf')
+
 
 for name, term_vector in zip(GROUP_NAMES, term_freq.T):
     # The mean image
