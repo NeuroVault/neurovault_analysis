@@ -43,12 +43,12 @@ for name, term_vector in zip(GROUP_NAMES, term_freq.T):
     term_img = masker.inverse_transform(X[term_vector != 0].mean(axis=0))
     term_img.to_filename('%s.nii.gz' % name)
 
-    #display = plot_stat_map(term_img, cut_coords=(-14, 8, 26, 44, 54),
-    #                        colorbar=False, display_mode='z')
-    #display.title('%s: %i maps' % (name, (term_vector != 0).sum()),
-    #              size=17)
-    #display.savefig('%s.png' % name)
-    #display.savefig('%s.pdf' % name)
+    display = plot_stat_map(term_img, cut_coords=(-14, 8, 26, 44, 54),
+                            colorbar=False, display_mode='z')
+    display.title('%s: %i maps' % (name, (term_vector != 0).sum()),
+                  size=17)
+    display.savefig('%s.png' % name)
+    display.savefig('%s.pdf' % name)
 
     # The fraction of activated voxels, in ratio of how often the
     # corresponding voxels are activated in the full database

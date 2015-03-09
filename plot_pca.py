@@ -29,10 +29,10 @@ images = [os.path.join(data_dir, 'resampled',
                        '%06d.nii.gz' % row[1]['image_id'])
           for row in metadata.iterrows()]
 
-masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
+masker = NiftiMasker(mask_img=mask, memory=os.path.join(data_dir, 'cache'))
 X = masker.fit_transform(images)
 
-from text_analysis import group_names, extract_documents, vectorize
+from text_analysis import GROUP_NAMES, extract_documents, vectorize
 
 documents = extract_documents(metadata)
 term_freq = vectorize(documents)
@@ -135,7 +135,7 @@ if 0:
     factor_scatter_matrix(df_tsne, 'label', le.inverse_transform(list(set(y))),
                         'collection_id')
 
-if 1:
+if 0:
     # -------------------------------------------
     # MSD
 
@@ -150,7 +150,7 @@ if 1:
                         'collection_id')
 
 
-    for freq, name in zip(term_freq.T, group_names):
+    for freq, name in zip(term_freq.T, GROUP_NAMES):
         df_mds['label'] = freq
         factor_scatter_matrix(df_mds, 'label',
                             le.inverse_transform(list(set(y))),

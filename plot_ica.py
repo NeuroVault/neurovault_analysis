@@ -28,7 +28,7 @@ images = [os.path.join(data_dir, 'resampled',
                        '%06d.nii.gz' % row[1]['image_id'])
           for row in metadata.iterrows()]
 
-masker = NiftiMasker(mask=mask, memory=os.path.join(data_dir, 'cache'))
+masker = NiftiMasker(mask_img=mask, memory=os.path.join(data_dir, 'cache'))
 X = masker.fit_transform(images)
 
 fast_ica = FastICA(n_components=20, random_state=42)

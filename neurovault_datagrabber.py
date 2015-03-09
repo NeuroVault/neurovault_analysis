@@ -266,6 +266,10 @@ if __name__ == '__main__':
     not_Zscr = [-3360, -3362, -3364]
     combined_df = combined_df[~combined_df.image_id.isin(not_Zscr)]
 
+    # Now remove images that are ugly, or obviously not z maps:
+    broken = [1202, 1163, 1931, 1101, 1099]
+    combined_df = combined_df[~combined_df.image_id.isin(broken)]
+
     combined_df.to_csv('%s/metadata.csv' % dest_dir, encoding='utf8')
 
 
