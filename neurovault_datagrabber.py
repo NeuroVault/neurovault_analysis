@@ -276,7 +276,7 @@ if __name__ == '__main__':
     #--------------------------------------------------
     # Plot a map of frequency of activation
     freq_nii = get_frequency_map(combined_df, dest_dir, target)
-    freq_nii.to_filename("/tmp/freq_map.nii.gz")
+    freq_nii.to_filename("freq_map.nii.gz")
 
     display = plot_anat("/usr/share/fsl/data/standard/MNI152_T1_2mm.nii.gz",
                         display_mode='z',
